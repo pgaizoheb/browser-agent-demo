@@ -184,10 +184,11 @@ GitHub Pages limitations:
 Before a GitHub Pages deployment:
 
 1. In **GitHub → repository → Settings → Pages**, select **GitHub Actions** as the source.
-2. Provide `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as repository variables to the build workflow. They are public browser configuration; never use a `service_role` key.
-3. Build with `VITE_BASE_PATH=/browser-agent-demo/` and `VITE_SIMULATOR_ENABLED=false`.
-4. In **Supabase → Authentication → URL Configuration**, set the hosted site URL to `https://<github-username>.github.io/browser-agent-demo/` and add the same URL to the allowed redirect URLs. Keep the local URL while developing.
-5. Deploy the generated `dist/` artifact with the Pages workflow. This repository does not deploy automatically.
+2. In **Settings → Secrets and variables → Actions → Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. They are public browser configuration; never use a `service_role` key.
+3. In **Supabase → Authentication → URL Configuration**, set the hosted site URL to `https://pgaizoheb.github.io/browser-agent-demo/` and add the same URL to the allowed redirect URLs. Keep the local URL while developing.
+4. Open **GitHub → Actions → Deploy GitHub Pages**, choose **Run workflow**, and run it from `main`.
+
+The workflow builds with `VITE_BASE_PATH=/browser-agent-demo/` and `VITE_SIMULATOR_ENABLED=false`, validates that both public Supabase variables exist, and deploys `dist/`. It runs only when manually dispatched.
 
 ## Browser-agent readiness
 
