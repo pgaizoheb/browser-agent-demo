@@ -50,7 +50,7 @@ supabase/
 5. In **Project Settings → API**, copy the project URL and publishable key. A legacy anon key also works.
 6. Never copy the `service_role` key into this project.
 
-Re-run `supabase/seed.sql` whenever you want to delete current demo cases/events and restore the original eight fictional cases.
+Re-run `supabase/seed.sql` whenever you want to delete current demo cases/events and restore the original nine fictional cases. The seed deliberately includes explicit approval, denial, missing-information, specialist-review, conflicting-facts, completed, and no-action examples; the frontend still exposes only facts and controls.
 
 ## Configure email OTP
 
