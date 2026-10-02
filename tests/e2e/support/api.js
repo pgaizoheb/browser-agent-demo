@@ -23,7 +23,11 @@ export async function apiAs(username) {
   const { error } = await client.auth.signInWithPassword({ email: `${username}@example.invalid`, password: DEMO_PASSWORD })
   if (error) throw error
   await must(client.rpc('mp_begin_verification', { p_resend: false }))
-  const [message] = await must(client.from('mp_demo_outbox').select('body').order('id', { ascending: false }).limit(1))
+  // Read the code issued to THIS Auth session (other sessions of the same user may run concurrently).
+  const { data: { session } } = await client.auth.getSession()
+  const sessionId = JSON.parse(Buffer.from(session.access_token.split('.')[1], 'base64url')).session_id
+  const [message] = await must(client.from('mp_demo_outbox').select('body').eq('session_id', sessionId)
+    .order('id', { ascending: false }).limit(1))
   const code = message.body.match(/\b(\d{6})\b/)[1]
   const result = await must(client.rpc('mp_verify_login_code', { p_code: code }))
   if (!result.verified) throw new Error(`verification failed for ${username}`)

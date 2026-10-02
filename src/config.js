@@ -16,7 +16,9 @@ export const demoAccounts = [
   { username: 'demo.other', label: 'Demo Other IPA User — separate organization' },
 ]
 
-// Documented synthetic password for local stacks. Hosted deployments may override it
-// at seed time; set VITE_DEMO_PASSWORD to the same value, or to an empty string to hide
-// the sign-in "Fill demo credentials" helper.
-export const demoPassword = import.meta.env.VITE_DEMO_PASSWORD ?? 'MedPointDemo!2026'
+// Documented synthetic password used by the sign-in "Fill demo credentials" helper.
+// Hosted deployments may seed a different password (set VITE_DEMO_PASSWORD to match), or
+// hide the helper entirely with VITE_DEMO_FILL=false.
+export const demoPassword = import.meta.env.VITE_DEMO_FILL === 'false'
+  ? ''
+  : import.meta.env.VITE_DEMO_PASSWORD || 'MedPointDemo!2026'

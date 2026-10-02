@@ -11,3 +11,4 @@ test-results/
 playwright-report/
 visual-comparison/
 supabase/.branches/
+dist-e2e-*/

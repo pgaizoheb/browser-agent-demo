@@ -993,22 +993,22 @@ begin
 
   select * into v_member from public.mp_members
   where id = nullif(p_data ->> 'member_id', '')::uuid and org_id = p_org_id;
-  if v_member.id is null then v_errors := v_errors || 'Member is required.'; end if;
+  if v_member.id is null then v_errors := array_append(v_errors, 'Member is required.'::text); end if;
 
   if v_requested is null or not exists (select 1 from public.mp_providers where id = v_requested and org_id = p_org_id) then
-    v_errors := v_errors || 'Requested provider is required.';
+    v_errors := array_append(v_errors, 'Requested provider is required.'::text);
   end if;
   if v_referring is not null and not exists (select 1 from public.mp_providers where id = v_referring and org_id = p_org_id) then
-    v_errors := v_errors || 'Referring provider is not in this IPA.';
+    v_errors := array_append(v_errors, 'Referring provider is not in this IPA.'::text);
   end if;
   if v_service is null or not exists (select 1 from public.mp_reference_codes where code_type = 'service' and code = v_service) then
-    v_errors := v_errors || 'Service code is required.';
+    v_errors := array_append(v_errors, 'Service code is required.'::text);
   end if;
   if v_diagnosis is null or not exists (select 1 from public.mp_reference_codes where code_type = 'diagnosis' and code = v_diagnosis) then
-    v_errors := v_errors || 'Diagnosis code is required.';
+    v_errors := array_append(v_errors, 'Diagnosis code is required.'::text);
   end if;
   if v_pos is null or not exists (select 1 from public.mp_reference_codes where code_type = 'place_of_service' and code = v_pos) then
-    v_errors := v_errors || 'Place of service is required.';
+    v_errors := array_append(v_errors, 'Place of service is required.'::text);
   end if;
   begin
     v_units := (p_data ->> 'units')::integer;
@@ -1016,20 +1016,20 @@ begin
     v_units := null;
   end;
   if v_units is null or v_units < 1 or v_units > 999 then
-    v_errors := v_errors || 'Units must be between 1 and 999.';
+    v_errors := array_append(v_errors, 'Units must be between 1 and 999.'::text);
   end if;
   if v_priority not in ('routine', 'urgent') then
-    v_errors := v_errors || 'Priority must be routine or urgent.';
+    v_errors := array_append(v_errors, 'Priority must be routine or urgent.'::text);
   end if;
   if char_length(v_summary) > 4000 then
-    v_errors := v_errors || 'Clinical summary must be 4000 characters or fewer.';
+    v_errors := array_append(v_errors, 'Clinical summary must be 4000 characters or fewer.'::text);
   end if;
   if p_submit then
     if char_length(v_summary) < 20 then
-      v_errors := v_errors || 'Clinical summary must be at least 20 characters to submit.';
+      v_errors := array_append(v_errors, 'Clinical summary must be at least 20 characters to submit.'::text);
     end if;
     if v_member.id is not null and v_member.eligibility_status <> 'eligible' then
-      v_errors := v_errors || 'Member is not eligible on the request date.';
+      v_errors := array_append(v_errors, 'Member is not eligible on the request date.'::text);
     end if;
   end if;
 
@@ -1147,6 +1147,11 @@ begin
   end if;
   if p_to_status = 'requested' and char_length(btrim(v_auth.clinical_summary)) < 20 then
     raise exception 'Clinical summary must be at least 20 characters to submit.' using errcode = '22023';
+  end if;
+  if p_to_status = 'requested' and exists (
+    select 1 from public.mp_members m where m.id = v_auth.member_id and m.eligibility_status <> 'eligible'
+  ) then
+    raise exception 'Member is not eligible on the request date.' using errcode = '22023';
   end if;
 
   update public.mp_authorizations set

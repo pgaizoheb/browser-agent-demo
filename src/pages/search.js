@@ -29,11 +29,13 @@ function referenceFields(query) {
 function queryFromForm(form, config, query) {
   const next = new URLSearchParams()
   const data = new FormData(form)
+  const rangeNames = new Set([...config.fields, ...(config.advanced || [])].filter((def) => def.type === 'dateRange').map((def) => def.name))
   for (const [key, value] of data.entries()) {
     const trimmed = String(value).trim()
     if (!trimmed) continue
+    // Custom from/to inputs of a date-range filter only count when that filter is set to Custom.
     const rangeBase = key.replace(/_(from|to)$/, '')
-    if (key !== rangeBase && data.get(rangeBase) !== 'custom') continue
+    if (rangeNames.has(rangeBase) && key !== rangeBase && data.get(rangeBase) !== 'custom') continue
     next.set(key, trimmed)
   }
   next.set('searched', '1')

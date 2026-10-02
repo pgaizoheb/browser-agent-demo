@@ -48,3 +48,14 @@ export async function resultsReady(page) {
 export async function columnValues(page, columnIndex) {
   return page.locator(`[data-testid="results-table"] tbody tr[data-record-id] td:nth-child(${columnIndex})`).allTextContents()
 }
+
+/**
+ * Runs an action that re-renders results (search, sort, paging, navigation) and waits for a
+ * FRESH, fully loaded results table, so assertions never read the previous table's rows.
+ */
+export async function settled(page, action) {
+  await page.evaluate(() => document.querySelectorAll('[data-testid="results-table"]').forEach((el) => { el.dataset.stale = '1' }))
+  await action()
+  await expect(page.locator('[data-testid="results-table"]:not([data-stale])')).toBeVisible()
+  await resultsReady(page)
+}

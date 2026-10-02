@@ -4,16 +4,19 @@ import { defineConfig, devices } from '@playwright/test'
 // The web server reads public local-stack values via scripts/with-local-env.mjs.
 const PORT = Number(process.env.E2E_PORT || 4173)
 const BASE_URL = process.env.E2E_BASE_URL || `http://localhost:${PORT}/browser-agent-demo/`
+// Separate artifacts per port so concurrent runs never clean each other's output.
+const RUN_DIR = process.env.E2E_PORT ? `/${PORT}` : ''
+const OUT_DIR = process.env.E2E_PORT ? `dist-e2e-${PORT}` : 'dist'
 
 export default defineConfig({
   testDir: './tests/e2e',
-  outputDir: './test-results',
+  outputDir: `./test-results${RUN_DIR}`,
   timeout: 45_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: process.env.CI ? 2 : 3,
   retries: process.env.CI ? 1 : 0,
-  reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
+  reporter: [['list'], ['html', { open: 'never', outputFolder: `playwright-report${RUN_DIR}` }]],
   globalSetup: './tests/e2e/global-setup.js',
   use: {
     baseURL: BASE_URL,
@@ -26,7 +29,7 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } }, testMatch: /responsive\.spec/ },
   ],
   webServer: process.env.E2E_BASE_URL ? undefined : {
-    command: `node scripts/with-local-env.mjs sh -c "vite build && vite preview --port ${PORT} --strictPort"`,
+    command: `node scripts/with-local-env.mjs sh -c "vite build --outDir ${OUT_DIR} && vite preview --outDir ${OUT_DIR} --port ${PORT} --strictPort"`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
