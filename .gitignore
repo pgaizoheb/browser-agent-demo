@@ -6,3 +6,9 @@ node_modules/
 dist/
 .DS_Store
 supabase/.temp/
+tests/e2e/.auth/
+test-results/
+playwright-report/
+visual-comparison/
+supabase/.branches/
+dist-e2e-*/

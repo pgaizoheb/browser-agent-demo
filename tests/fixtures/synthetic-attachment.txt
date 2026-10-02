@@ -1,0 +1,4 @@
+LOCAL MOCK / DEMO - NO REAL DATA
+
+Synthetic e2e attachment
+Fixture for upload/download tests. No patient information.

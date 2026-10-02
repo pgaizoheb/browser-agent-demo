@@ -39,11 +39,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Static checks
+        run: node scripts/check.mjs
+
       - name: Build static site
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
-          VITE_SIMULATOR_ENABLED: ${{ vars.VITE_SIMULATOR_ENABLED }}
+          VITE_DEMO_PASSWORD: ${{ vars.VITE_DEMO_PASSWORD }}
+          VITE_DEMO_FILL: ${{ vars.VITE_DEMO_FILL }}
           VITE_BASE_PATH: /browser-agent-demo/
         run: npm run build
 

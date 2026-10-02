@@ -1,195 +1,118 @@
-# Browser Agent Prior Authorization Demo
+# MedPoint-style Payer Portal — LOCAL MOCK / DEMO
 
-A deliberately simple static browser-automation playground for fictional prior-authorization workflows. The browser talks directly to Supabase Auth, Postgres, RPC, and Realtime. No application backend is required.
+A browser-agent testing environment that reproduces the observable MedPoint provider-portal interface on top of a **synthetic** Supabase dataset. It replaces the earlier prior-authorization demo UI in this repository, using the same hosting (GitHub Pages), deployment workflow, and Supabase project.
 
-All names, IDs, facts, and case records are fictional. Never load PHI or production healthcare information.
+> **LOCAL MOCK / DEMO — NO REAL DATA.** Every person, identifier, record, note, and file is synthetic. The app never connects to the real MedPoint portal; its Content-Security-Policy only permits the configured demo Supabase origin.
+
+- Live site: <https://pgaizoheb.github.io/browser-agent-demo/>
+- Portal inventory: [`docs/portal/portal-map.md`](docs/portal/portal-map.md) · progress: [`docs/portal/portal-progress.md`](docs/portal/portal-progress.md) · workflows/assumptions: [`docs/portal/testing-workflows.md`](docs/portal/testing-workflows.md) · components: [`docs/portal/portal-components.md`](docs/portal/portal-components.md) · safety log: [`docs/portal/portal-safety-log.md`](docs/portal/portal-safety-log.md)
 
 ## Architecture
 
 ```text
-GitHub Pages / Vite static assets
-  ├─ Supabase Auth: email OTP and persistent browser session
-  ├─ Supabase Postgres: cases and case_events
-  ├─ Postgres RPC: atomic case status update plus audit event
-  └─ Supabase Realtime: dashboard and detail refresh
+GitHub Pages (static Vite build, hash routes)
+  └─ Supabase (anon/publishable key only in the browser)
+       ├─ Auth: email+password for seeded demo accounts
+       ├─ RPC: test-mode e-mail verification, authorization workflow, hospital admin
+       ├─ Postgres: mp_* tables + security_invoker views, RLS on every table
+       └─ Storage: private bucket mp-demo-documents (synthetic files)
 ```
 
-The frontend exposes facts and controls. It contains no authorization decision rules and never recommends approve or deny.
+There is no application server. Authorization is enforced by Postgres RLS, column privileges, `SECURITY DEFINER` RPCs that check role and status, and Storage policies. Service-role credentials are used only by the administrative reset script on a trusted machine.
 
-## Automation contract
+## Demo accounts
 
-The site intentionally supports ordinary automated Chromium interaction. It has no CAPTCHA, Turnstile, bot detection, browser fingerprint checks, headless-browser rejection, behavioral challenges, automation-framework detection, randomized selectors, challenge pages, anti-scraping code, or application-level rate limiting.
+| Username | Role | Password (local) |
+|---|---|---|
+| `demo.user` | Provider office staff (DEMO IPA, Demo Empty IPA) | `MedPointDemo!2026` |
+| `demo.reviewer` | Utilization reviewer (DEMO IPA) | `MedPointDemo!2026` |
+| `demo.admin` | IPA administrator (all four demo IPAs) | `MedPointDemo!2026` |
+| `demo.viewer` | Read-only (DEMO IPA) | `MedPointDemo!2026` |
+| `demo.other` | Provider office staff (Demo Community Network only) | `MedPointDemo!2026` |
 
-Every workflow control is visible in semantic HTML with associated labels and stable `data-testid`, `data-record-id`, `data-status`, or `data-action` attributes. Security comes from Supabase Auth, RLS, and constrained RPC permissions—not from obstructing browser interaction.
+Hosted deployments use the password passed as `MP_DEMO_PASSWORD` when seeding. The documented default is the same value unless you choose otherwise. The sign-in page has a **Fill demo credentials** helper; hide it with the GitHub variable `VITE_DEMO_FILL=false`.
+
+### Sign-in and verification behavior
+
+Username + password → **DEMO TEST CAPTCHA** appears (check it) → **Sign in** → **Email verification**.
+
+- The verification code is random per session and is delivered **only** to the in-app **demo test mailbox** (`Open demo test mailbox` on the verification screen; also in the account menu). **No e-mail is ever sent.**
+- 5 wrong codes lock the code; codes expire after 10 minutes; **Resend code** issues a new one (max 10 per session).
+- Until verified, RLS returns no records, even to direct API calls.
+
+Details of every workflow and its design assumptions: [`docs/portal/testing-workflows.md`](docs/portal/testing-workflows.md).
 
 ## Project structure
 
 ```text
-index.html
-package.json
-package-lock.json
-vite.config.js
-src/
-  main.js
-  styles.css
-supabase/
-  migrations/
-    202609180001_initial.sql
-    202609180002_case_context.sql
-  seed.sql
-  tests/
-    local_auth_stub.sql
+index.html                     CSP placeholder (filled at build), demo banner, modal + toast roots
+vite.config.js                 base path + narrow CSP for the configured Supabase origin
+src/main.js                    router, auth guard, shell wiring
+src/components/                shell, field, dataTable, feedback, files, attachments, notes
+src/pages/                     sign-in, home, search (+ configs), reports, request form, details, workflows
+src/lib/                       supabase client, session/roles, data access, errors, formatting
+src/assets/                    public logo, banner, icon font copied from the supplied mock
+supabase/migrations/           202609180001-2 legacy demo; 202610020001 portal schema; 202610020002 seed functions
+supabase/seeds/medpoint_demo.sql   local `supabase db reset` seed entry
+supabase/seed.sql              legacy cases seed (unchanged)
+supabase/tests/database/       pgTAP tests
+supabase/plain-postgres/       legacy auth stub for running old migrations on plain Postgres
+scripts/demo-dataset.mjs       scoped reset + synthetic file sync
+scripts/visual-compare.mjs     mock vs app screenshots
+tests/e2e/                     Playwright suite; tests/fixtures/ synthetic upload files
 ```
 
-## Create the Supabase project
+## Local development
 
-1. Create a project at <https://supabase.com/dashboard>.
-2. Open **SQL Editor**.
-3. Run every file in `supabase/migrations/` in timestamp order.
-4. Run `supabase/seed.sql`.
-5. In **Project Settings → API**, copy the project URL and publishable key. A legacy anon key also works.
-6. Never copy the `service_role` key into this project.
-
-Re-run `supabase/seed.sql` whenever you want to delete current demo cases/events and restore the original eight fictional cases.
-
-## Configure email OTP
-
-1. Open **Authentication → Providers → Email**.
-2. Enable email authentication.
-3. Disable new-user signups if only explicit demo accounts should log in.
-4. Open **Authentication → Email Templates → Magic Link**.
-5. Put `{{ .Token }}` in the template instead of relying only on `{{ .ConfirmationURL }}`.
-6. Use a subject such as `Browser Agent Demo verification code`.
-7. Set the email OTP length to `8` so it matches the portal input.
-8. Configure OTP expiration and email rate limits in Supabase Auth settings.
-
-Supabase's built-in sender is enough for a small demonstration but has delivery restrictions. A custom SMTP provider can be configured inside Supabase later without changing this frontend.
-
-## Create the demo user
-
-Open **Authentication → Users → Add user** and enter the demo email. Confirm the user if prompted. The login page calls `signInWithOtp` with `shouldCreateUser: false`, so unknown email addresses cannot create accounts through this application.
-
-## Local configuration
+Prerequisites: Node 22+, Docker.
 
 ```bash
-cp .env.example .env
+npm ci
+npm run supabase:start     # local Supabase stack; applies migrations and seeds rows
+npm run demo:reset         # deterministic rows + synthetic Storage files (local)
+npm run dev:local          # Vite dev server wired to the local stack
 ```
 
-Set:
+Open <http://localhost:5173/browser-agent-demo/>. `dev:local` injects the local URL and anon key from `supabase status`, so no local keys are committed.
 
-```dotenv
-VITE_SUPABASE_URL=https://project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-publishable-or-anon-key
-VITE_SIMULATOR_ENABLED=false
-VITE_BASE_PATH=/browser-agent-demo/
-```
+## Tests and reset
 
-These values are embedded in public browser assets. The Supabase URL and anon/publishable key are intentionally public; RLS enforces authorization. Never use a database password or `service_role` key here.
+| Command | What it does |
+|---|---|
+| `npm run check` | JS syntax for every source/script/test, safety guards (no production domain, no privileged keys, no safety-extension), production build |
+| `npm run db:test` | pgTAP: RLS, verified-session gating, role/transition rules, column privileges, Storage policies, reset scope |
+| `npm run test:e2e` | Playwright against the **production build** (`vite preview`, real CSP), desktop + 390 px mobile projects. Global setup runs `demo:reset` locally and signs in every role |
+| `npm run test:visual` | Serves the supplied mock on loopback and writes mock/app/diff composites to `visual-comparison/` (`MOCK_DIR` overrides the mock location) |
+| `npm run demo:reset` | Resets **only** the synthetic MedPoint dataset on the local stack: rows owned by demo organizations/profiles and objects in `mp-demo-documents` |
+| `npm run demo:reset:remote -- --confirm=<project-ref>` | The same against the hosted project, using `.env.backend` (see `.env.backend.example`). Refuses without the matching `--confirm` |
 
-## Start locally
+The reset calls `mp_private.reset_demo_dataset(password)`, which deletes only rows whose organization is a demo organization (`mp_organizations.is_demo` is constrained to `true`) and re-seeds them deterministically. It never touches legacy `cases`/`case_events`, other auth users, or other buckets. There is no broad wipe.
 
-```bash
-npm install
-npm run dev
-```
+Useful E2E variables: `E2E_SKIP_RESET=1` (keep current data), `E2E_PORT` (preview port; note that 4190 is a browser-blocked port).
 
-Open <http://localhost:5173/browser-agent-demo/>.
+## Hosted setup and deployment
 
-## Authentication test
+1. **Supabase project** (`kmlmsvgwhnprvmxcwpdc`). Put admin values in `.env.backend` (gitignored; template in `.env.backend.example`).
+2. **Migrations.** `npx supabase link --project-ref <ref>`. If the legacy tables were created through the SQL editor, first mark them applied: `npx supabase migration repair --status applied 202609180001 202609180002`. Then run `npx supabase db push`.
+3. **Seed.** `npm run demo:reset:remote -- --confirm=<ref>` creates the demo auth users, synthetic rows, and Storage files.
+4. **Auth settings.** Keep the Email provider enabled (password sign-in). Disable new sign-ups: the app never creates accounts, and only seeded profiles can verify.
+5. **GitHub Pages.** Repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (public), plus optional `VITE_DEMO_PASSWORD` and `VITE_DEMO_FILL`. Run **Actions → Deploy GitHub Pages → Run workflow** on `main`. The workflow runs `scripts/check.mjs`, builds with `VITE_BASE_PATH=/browser-agent-demo/`, and deploys `dist/`.
 
-1. Open the site while logged out; it should show the email form.
-2. Enter the explicit Supabase demo-user email.
-3. Click **Send verification code**.
-4. Read the numeric code from email.
-5. Enter it on the OTP page.
-6. Refresh the dashboard; the Supabase session should remain active.
-7. Click **Log out**; protected routes should return to login.
+Pull requests run `.github/workflows/test.yml`: check, local Supabase, pgTAP, and Playwright.
 
-OTP values are never displayed, logged, or stored in application tables.
+## Rollback
 
-## Database and RLS
+- The pre-replacement deployment is tagged **`pre-medpoint-replacement`** (commit `fd25a7c`). Uncommitted work present at replacement time is preserved on branch `checkpoint/pre-medpoint-worktree`.
+- **Frontend:** the Pages environment only deploys from `main`. Revert the merge commit on `main` (`git revert -m 1 <merge-sha> && git push`), then run **Deploy GitHub Pages**. Alternatively, restore files from the tag with `git checkout pre-medpoint-replacement -- index.html src vite.config.js package.json package-lock.json`, commit, and deploy.
+- **Database:** the new schema is additive (`mp_*` tables, `mp_private` schema, `mp-demo-documents` bucket). The legacy `cases`/`case_events` tables and RPCs are untouched, so the old UI works again after a frontend rollback without any database change. To remove the demo schema entirely, drop the `mp_*` objects and bucket deliberately; this is not needed for rollback.
 
-Application tables:
+## Legacy prior-authorization demo
 
-- `cases`: fictional request facts and current workflow state
-- `case_events`: immutable audit history
+The previous UI is removed. Its tables (`cases`, `case_events`), RPCs, migrations, and `supabase/seed.sql` remain unchanged so that existing data is preserved and rollback stays possible. The new portal does not read or write them.
 
-Both tables have RLS enabled. The `anon` role has no table privileges. Authenticated users can select both tables but cannot directly insert, update, or delete. Writes are limited to two authenticated RPC functions:
+## Known limitations
 
-- `perform_case_action`: locks the case, changes status, and inserts the audit event in one transaction; actor is fixed to `demo_user`.
-- `simulate_case_change`: makes only controlled fictional queue/information updates; actor is fixed to `simulator`.
-
-Both functions reject calls where `auth.uid()` is null. No browser-provided actor is trusted.
-
-### Verify anonymous access is rejected
-
-Replace the URL and anon key, then run:
-
-```bash
-curl -i "$VITE_SUPABASE_URL/rest/v1/cases?select=*" \
-  -H "apikey: $VITE_SUPABASE_ANON_KEY"
-
-curl -i -X PATCH "$VITE_SUPABASE_URL/rest/v1/cases?id=eq.10000000-0000-4000-8000-000000000001" \
-  -H "apikey: $VITE_SUPABASE_ANON_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"status":"approved"}'
-
-curl -i "$VITE_SUPABASE_URL/rest/v1/case_events?select=*" \
-  -H "apikey: $VITE_SUPABASE_ANON_KEY"
-```
-
-Each request must return an authorization/permission error and no case data. Do the same with `POST /rest/v1/case_events`; it must be rejected.
-
-## Case actions
-
-The detail view exposes approve, deny, request information, submit, move pending, and close controls. Deny and request-information actions require a note in both the UI and database RPC. After success, the page re-fetches the case and its event history.
-
-## Realtime
-
-The migration adds `cases` and `case_events` to the `supabase_realtime` publication. The dashboard subscribes to all case changes. A detail page subscribes to that case and its new audit events. Realtime notifications trigger a database re-fetch rather than trusting notification payloads.
-
-## Simulator
-
-The simulator is an authenticated frontend demo mode because it requires no privileged browser secret. Enable it with:
-
-```dotenv
-VITE_SIMULATOR_ENABLED=true
-```
-
-Every 20–60 seconds the page calls `simulate_case_change`. The database function either marks fictional requested information as received or creates a new fictional queue item. It never approves or denies a case. RLS and the RPC authentication check still apply.
-
-The simulator runs only while an authenticated demo browser session is open.
-
-## GitHub Pages build
-
-```bash
-npm run build
-```
-
-Static output is written to `dist/`. Vite defaults to `/browser-agent-demo/`, and hash routing keeps client views working under the repository subpath without server rewrites.
-
-For a custom domain or root-hosted preview:
-
-```bash
-VITE_BASE_PATH=/ npm run build
-```
-
-GitHub Pages limitations:
-
-- Build-time public Supabase values are visible to every visitor.
-- Security therefore depends on Supabase RLS, not key secrecy.
-- GitHub Pages cannot run the simulator without an authenticated browser remaining open.
-- Auth email delivery, database migrations, and user creation remain Supabase responsibilities.
-
-Before a GitHub Pages deployment:
-
-1. In **GitHub → repository → Settings → Pages**, select **GitHub Actions** as the source.
-2. In **Settings → Secrets and variables → Actions → Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. They are public browser configuration; never use a `service_role` key.
-3. In **Supabase → Authentication → URL Configuration**, set the hosted site URL to `https://pgaizoheb.github.io/browser-agent-demo/` and add the same URL to the allowed redirect URLs. Keep the local URL while developing.
-4. Open **GitHub → Actions → Deploy GitHub Pages**, choose **Run workflow**, and run it from `main`.
-
-The workflow builds with `VITE_BASE_PATH=/browser-agent-demo/` and `VITE_SIMULATOR_ENABLED=false`, validates that both public Supabase variables exist, and deploys `dist/`. It runs only when manually dispatched.
-
-## Browser-agent readiness
-
-Stable attributes include `data-testid`, `data-record-id`, `data-status`, and `data-action`. The agent should discover records from the current DOM, inspect full detail facts, choose one external decision, submit it, verify the status and audit event, then return to the dashboard and continue monitoring Realtime.
+- Private pages, record details, request forms, notes, Hospital Admin, and all write workflows are **approximations**. They were never observed in production, and the UI labels them.
+- Responsive breakpoints are inferred; production mobile behavior was not observed.
+- The CAPTCHA is a labeled test control; the verification "e-mail" is an in-app test mailbox.
+- With publicly documented demo credentials, anyone can sign in to the hosted demo and change synthetic data (uploads are capped at 5 MB and limited to PDF/TXT/PNG/JPEG). Use `VITE_DEMO_FILL=false` plus a private `MP_DEMO_PASSWORD` to restrict access, and `demo:reset:remote` to restore the dataset.
