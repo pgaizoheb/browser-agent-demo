@@ -26,7 +26,7 @@ Status after replacing the static mock with the Supabase-backed demo (2026-10-02
 | Access control | IMPLEMENTED / TESTED | Verified-session RLS, org isolation, role checks in RPCs, column privileges, Storage policies |
 | Responsive layout | TESTED at 390 px | Breakpoints inferred; production mobile behavior unobserved |
 | Visual comparison vs supplied mock | DONE | 1126 px, `npm run test:visual`: mismatch 0.4%–2.6% per page; remaining differences are the deliberate additions listed above |
-| Deployment to GitHub Pages + hosted Supabase | DEPLOYED 2026-10-02 | Migrations `202610020001`/`202610020002` applied to project `kmlmsvgwhnprvmxcwpdc` (legacy data untouched: 22 cases / 111 events), synthetic rows seeded, Pages deployed from `main` merge `b5a13ba`. Live sign-in, search, note and attachment round-trips verified. 60 seeded document files synced; the 18 `shared/forms` files await the service-role key (`npm run demo:reset:remote`) |
+| Deployment to GitHub Pages + hosted Supabase | DEPLOYED 2026-10-02 | Migrations `202610020001`/`202610020002` applied to project `kmlmsvgwhnprvmxcwpdc` (legacy data untouched: 22 cases / 111 events), synthetic rows seeded, Pages deployed from `main` merge `b5a13ba`. Live sign-in, search, note and attachment round-trips verified. `npm run demo:reset:remote` then re-seeded rows and synced all 78 synthetic files (60 documents + 18 forms); seeded PDF/TXT previews verified live |
 | Comprehensive 1:1 production replica | NOT ACHIEVED (by design) | Private/write workflows were never observed |
 
 ## Verification results (local Supabase stack, 2026-10-02)
