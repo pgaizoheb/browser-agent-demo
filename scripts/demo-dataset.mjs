@@ -113,6 +113,8 @@ async function syncStorage(sql, storage) {
   }
 
   await sql.begin(async (tx) => {
+    // Maintenance write: keep it out of the demo audit trail.
+    await tx`select set_config('mp.suppress_audit', 'on', true)`
     for (const doc of documents) {
       await tx`update public.mp_documents set size_bytes = ${expected.get(doc.storage_path).body.length}
                where storage_path = ${doc.storage_path}`
