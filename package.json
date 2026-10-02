@@ -1,17 +1,34 @@
 {
   "name": "browser-agent-demo",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "node scripts/with-local-env.mjs vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:local": "node scripts/with-local-env.mjs vite build",
+    "preview": "vite preview",
+    "check": "node scripts/check.mjs",
+    "supabase:start": "supabase start -x vector,logflare,studio,imgproxy,edge-runtime,pooler",
+    "supabase:stop": "supabase stop",
+    "db:migrate:local": "supabase db reset",
+    "db:test": "supabase test db",
+    "demo:reset": "node scripts/demo-dataset.mjs reset",
+    "demo:storage": "node scripts/demo-dataset.mjs storage",
+    "demo:reset:remote": "node scripts/demo-dataset.mjs reset --remote",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:visual": "node scripts/visual-compare.mjs",
+    "test": "npm run check && npm run db:test && npm run test:e2e"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "postgres": "^3.4.7",
+    "supabase": "^2.119.0",
     "vite": "^7.1.7"
   }
 }
