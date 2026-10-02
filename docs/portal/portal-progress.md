@@ -26,7 +26,7 @@ Status after replacing the static mock with the Supabase-backed demo (2026-10-02
 | Access control | IMPLEMENTED / TESTED | Verified-session RLS, org isolation, role checks in RPCs, column privileges, Storage policies |
 | Responsive layout | TESTED at 390 px | Breakpoints inferred; production mobile behavior unobserved |
 | Visual comparison vs supplied mock | DONE | 1126 px, `npm run test:visual`: mismatch 0.4%–2.6% per page; remaining differences are the deliberate additions listed above |
-| Deployment to GitHub Pages + hosted Supabase | BLOCKED ON ACCESS | Hosted project hostname did not resolve and the stored management token was rejected on 2026-10-02; see README "Hosted setup and deployment" |
+| Deployment to GitHub Pages + hosted Supabase | DEPLOYED 2026-10-02 | Migrations `202610020001`/`202610020002` applied to project `kmlmsvgwhnprvmxcwpdc` (legacy data untouched: 22 cases / 111 events), synthetic rows seeded, Pages deployed from `main` merge `b5a13ba`. Live sign-in, search, note and attachment round-trips verified. 60 seeded document files synced; the 18 `shared/forms` files await the service-role key (`npm run demo:reset:remote`) |
 | Comprehensive 1:1 production replica | NOT ACHIEVED (by design) | Private/write workflows were never observed |
 
 ## Verification results (local Supabase stack, 2026-10-02)
@@ -38,6 +38,8 @@ Status after replacing the static mock with the Supabase-backed demo (2026-10-02
 | `npm run test:e2e` (global scoped reset, `--retries=0`) | 134 passed (128 desktop + 6 mobile) |
 | `E2E_SKIP_RESET=1 npm run test:e2e` (repeat on mutated data) | 134 passed |
 | `npm run test:visual` | 10 page pairs captured; mismatch 0.4%–2.6% |
+| GitHub Actions `Test MedPoint demo portal` on PR #1 | pgTAP 77/77, Playwright 134 passed |
+| Live site (`https://pgaizoheb.github.io/browser-agent-demo/`) | CSP connect-src limited to the project origin; test CAPTCHA + mailbox code sign-in; Supabase search (52 requested); note and attachment persisted across reload, then deleted; no console errors |
 
 ## Bugs found by the suite and fixed
 
