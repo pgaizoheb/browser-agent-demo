@@ -32,6 +32,7 @@
 - The production portal was **not** visited, reloaded, scraped, or contacted during this phase. The supplied mock files were the only reference.
 - `safety-extension/` from the observation phase is not part of this repository or deployment (`scripts/check.mjs` fails if it appears).
 - The deployed app talks only to the demo Supabase project. The CSP `connect-src` allows `'self'` and that single Supabase origin; the build refuses a backend URL containing the production portal domain.
+- Backend diagnostics (`src/lib/backend.js`) log and display only the backend host, an operation name derived from the request path, the HTTP status, and an error category; never headers, bodies, query values, keys, tokens, or passwords (`tests/unit/backend.test.mjs`). The deploy workflow refuses a non-https or local-only `VITE_SUPABASE_URL` and a secret or `service_role` key (`scripts/verify-public-config.mjs`).
 - All people, identifiers, records, notes, and files are generated synthetically (`DEMO-` identifiers, fictional surnames, `example.invalid` e-mail, 555-01xx phones, `DEMO-ONLY` SSN placeholder that is never stored).
 - No real verification e-mails are sent; codes go to the in-app test mailbox (`mp_demo_outbox`).
 - Service-role credentials are used only by the local/admin reset script (`scripts/demo-dataset.mjs`) from `.env.backend` or the local CLI stack; they are never bundled, logged, or committed.

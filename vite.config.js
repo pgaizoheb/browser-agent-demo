@@ -2,9 +2,9 @@ import { defineConfig, loadEnv } from 'vite'
 
 // Builds a narrow Content-Security-Policy: same-origin assets plus the one configured
 // Supabase origin (REST, Auth, RPC, Storage). No third-party scripts, fonts, or frames.
-function contentSecurityPolicy(env, command) {
+function contentSecurityPolicy(backendUrl, command) {
   const connect = ["'self'"]
-  if (env.VITE_SUPABASE_URL) connect.push(new URL(env.VITE_SUPABASE_URL).origin)
+  if (backendUrl) connect.push(new URL(backendUrl).origin)
   if (command === 'serve') connect.push('ws://localhost:*', 'ws://127.0.0.1:*') // Vite HMR in dev only
   return [
     "default-src 'self'",
@@ -22,7 +22,8 @@ function contentSecurityPolicy(env, command) {
 
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
-  if (/medpointmanagement/i.test(env.VITE_SUPABASE_URL || '')) {
+  const backendUrl = (env.VITE_SUPABASE_URL || '').trim()
+  if (/medpointmanagement/i.test(backendUrl)) {
     throw new Error('VITE_SUPABASE_URL must point at the demo Supabase project, never the production portal.')
   }
   return {
@@ -30,7 +31,7 @@ export default defineConfig(({ mode, command }) => {
     plugins: [
       {
         name: 'medpoint-demo-csp',
-        transformIndexHtml: (html) => html.replace('__MP_CSP__', contentSecurityPolicy(env, command)),
+        transformIndexHtml: (html) => html.replace('__MP_CSP__', contentSecurityPolicy(backendUrl, command)),
       },
     ],
   }

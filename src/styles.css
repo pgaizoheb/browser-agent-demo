@@ -723,6 +723,7 @@ dialog .actions {
 .state-panel { background: white; border-radius: 4px; padding: 32px 24px; text-align: center; color: #555; box-shadow: 0 1px 3px #0002; margin-bottom: 16px; }
 .state-panel .icon { vertical-align: -6px; }
 .error-state { color: #b71c1c; }
+.diagnostic { display: block; margin: 6px 0 0; color: #555; font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 .permission-state { color: #73570d; background: #fff8e1; }
 .badge { white-space: nowrap; }
 .status-approved, .status-paid, .status-eligible, .status-read { background: #e8f5e9; color: #286436; }

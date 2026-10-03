@@ -31,6 +31,9 @@ jobs:
       - name: Static checks and build
         run: npm run check
 
+      - name: Unit tests
+        run: npm run test:unit
+
       - name: Start local Supabase (synthetic data only)
         run: npm run supabase:start
 

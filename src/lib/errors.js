@@ -1,3 +1,7 @@
+import { diagnosticIn, undiagnosed, userMessage } from './backend.js'
+
+const backendFailure = (diagnostic) => ({ kind: 'network', message: userMessage(diagnostic), diagnostic })
+
 /** Classifies Supabase/PostgREST/Storage errors into UI states with readable text. */
 export function describeError(error) {
   if (!error) return { kind: 'error', message: 'Unknown error.' }
@@ -5,8 +9,14 @@ export function describeError(error) {
   const status = Number(error.statusCode || error.status || 0)
   const message = error.message || String(error)
 
+  // Failures the client's fetch diagnosed carry a tag through auth-js, postgrest-js, and storage-js.
+  const diagnostic = diagnosticIn(message)
+  if (diagnostic) return backendFailure(diagnostic)
   if (error.name === 'TypeError' || /Failed to fetch|NetworkError|Load failed/i.test(message)) {
-    return { kind: 'network', message: 'Cannot reach the demo database. Check your connection and try again.' }
+    return backendFailure(undiagnosed('unreachable'))
+  }
+  if (status === 401 && /Invalid API key|No API key found/i.test(message)) {
+    return { ...backendFailure(undiagnosed('unauthorized')), kind: 'config' }
   }
   if (code === '42501' || status === 403 || /row-level security|permission denied/i.test(message)) {
     const readable = /row-level security|permission denied/i.test(message)

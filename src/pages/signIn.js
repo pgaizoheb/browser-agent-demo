@@ -1,5 +1,5 @@
 import logoUrl from '../assets/portal-logo.svg'
-import { busy, toast } from '../components/feedback.js'
+import { busy, diagnosticLine, toast } from '../components/feedback.js'
 import { field } from '../components/field.js'
 import { config, demoAccounts, demoPassword } from '../config.js'
 import { $, escapeHtml, icon } from '../lib/dom.js'
@@ -14,7 +14,7 @@ function card(content) {
     <p class="login-note">LOCAL MOCK / DEMO · Synthetic demo accounts only</p>${content}</section></main>`
 }
 
-function credentialsStage(message = '') {
+function credentialsStage(message = '', diagnostic = null) {
   const fill = demoPassword ? `<div class="demo-fill">
       <label for="demo-account" class="muted">Demo account</label>
       <select id="demo-account" data-testid="demo-account">${demoAccounts.map((a) => `<option value="${a.username}">${escapeHtml(a.label)}</option>`).join('')}</select>
@@ -29,6 +29,7 @@ function credentialsStage(message = '') {
       <label for="demo-captcha">I'm not a robot</label>
       <small>DEMO TEST CAPTCHA<br>Not a real challenge</small></div>
     <div id="login-error" class="error" role="alert" data-testid="login-error">${escapeHtml(message)}</div>
+    <div id="login-diagnostic">${diagnosticLine(diagnostic)}</div>
     <div class="login-actions"><div class="login-action-row">
         <button type="submit" data-testid="sign-in">${icon('input')}Sign in</button>
         <button type="button" data-help>${icon('help')}I forgot my password.</button></div>
@@ -57,12 +58,13 @@ export async function renderSignIn({ app, query, onVerified }) {
   showCredentials({ app, query, onVerified })
 }
 
-function showCredentials({ app, query, onVerified }, message = '') {
-  app.innerHTML = credentialsStage(message)
+function showCredentials({ app, query, onVerified }, message = '', diagnostic = null) {
+  app.innerHTML = credentialsStage(message, diagnostic)
   const form = $('#login-form')
   const password = $('#demo-password')
   const captcha = $('#captcha')
   const error = $('#login-error')
+  const diagnosticSlot = $('#login-diagnostic')
   app.querySelectorAll('[data-help]').forEach((el) => el.addEventListener('click', (event) => { event.preventDefault(); showHelp() }))
   $('#fill-demo')?.addEventListener('click', () => {
     $('#demo-user').value = $('#demo-account').value
@@ -76,6 +78,7 @@ function showCredentials({ app, query, onVerified }, message = '') {
   })
   form.addEventListener('submit', async (event) => {
     event.preventDefault()
+    diagnosticSlot.innerHTML = ''
     const username = $('#demo-user').value.trim()
     if (!username) { error.textContent = 'Enter your username.'; $('#demo-user').focus(); return }
     if (!password.value) { error.textContent = 'Enter your password.'; password.focus(); return }
@@ -86,9 +89,13 @@ function showCredentials({ app, query, onVerified }, message = '') {
       () => supabase.auth.signInWithPassword({ email, password: password.value }), 'Signing in…')
     if (signInError) {
       $('#demo-captcha').checked = false
-      error.textContent = /invalid login credentials/i.test(signInError.message)
-        ? 'Invalid username or password.'
-        : describeError(signInError).message
+      if (/invalid login credentials/i.test(signInError.message)) {
+        error.textContent = 'Invalid username or password.'
+        return
+      }
+      const described = describeError(signInError)
+      error.textContent = described.message
+      diagnosticSlot.innerHTML = diagnosticLine(described.diagnostic)
       return
     }
     const { data } = await supabase.auth.getSession()
@@ -102,7 +109,8 @@ async function showVerification({ app, query, onVerified }) {
   if (error) {
     await supabase.auth.signOut({ scope: 'local' })
     clearSession()
-    return showCredentials({ app, query, onVerified }, describeError(error).message)
+    const described = describeError(error)
+    return showCredentials({ app, query, onVerified }, described.message, described.diagnostic)
   }
   if (info.verified) {
     await loadStatus()

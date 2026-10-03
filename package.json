@@ -17,10 +17,12 @@
     "demo:reset": "node scripts/demo-dataset.mjs reset",
     "demo:storage": "node scripts/demo-dataset.mjs storage",
     "demo:reset:remote": "node scripts/demo-dataset.mjs reset --remote",
+    "test:unit": "node --test \"tests/unit/*.test.mjs\"",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
+    "test:hosted": "playwright test --config playwright.hosted.config.js",
     "test:visual": "node scripts/visual-compare.mjs",
-    "test": "npm run check && npm run db:test && npm run test:e2e"
+    "test": "npm run check && npm run test:unit && npm run db:test && npm run test:e2e"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4"
