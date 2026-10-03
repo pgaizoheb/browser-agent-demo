@@ -2,6 +2,7 @@ import './styles.css'
 import { closeModal, errorState, openModal } from './components/feedback.js'
 import { wireFileActions } from './components/files.js'
 import { mountShell, refreshOrgSelect, titleForPath, updateShell } from './components/shell.js'
+import { userMessage } from './lib/backend.js'
 import { clearLookups } from './lib/data.js'
 import { $, escapeHtml } from './lib/dom.js'
 import { describeError } from './lib/errors.js'
@@ -115,7 +116,7 @@ async function renderRoute() {
   } catch (error) {
     const described = describeError(error)
     if (described.kind === 'session') return signOut()
-    if (ctx.isCurrent()) main.innerHTML = errorState(described.message)
+    if (ctx.isCurrent()) main.innerHTML = errorState(described.message, described.diagnostic)
   } finally {
     if (ctx.isCurrent()) main.removeAttribute('aria-busy')
   }
@@ -123,7 +124,7 @@ async function renderRoute() {
 
 async function start() {
   if (configError) {
-    app.innerHTML = `<main class="login-page"><section class="login-card">${errorState(configError)}</section></main>`
+    app.innerHTML = `<main class="login-page"><section class="login-card">${errorState(userMessage(configError), configError)}</section></main>`
     return
   }
   wireFileActions(document)

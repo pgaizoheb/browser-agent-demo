@@ -1,3 +1,4 @@
+import { diagnosticSummary } from '../lib/backend.js'
 import { $, escapeHtml, icon } from '../lib/dom.js'
 
 export function openModal(html, { wide = false, testId = 'modal' } = {}) {
@@ -44,8 +45,13 @@ export function confirmDialog(message, { confirmLabel = 'Delete', title = 'Pleas
 export const loadingState = (text = 'Loading synthetic records…') =>
   `<div class="state-panel" role="status" data-testid="loading">${escapeHtml(text)}</div>`
 
-export const errorState = (text) =>
-  `<div class="state-panel error-state" role="alert" data-testid="page-error">${icon('error_outline')} ${escapeHtml(text)}</div>`
+/** Markup for a backend diagnostic line (development-safe: category, operation, host). */
+export const diagnosticLine = (diagnostic) => diagnostic
+  ? `<small class="diagnostic" data-testid="backend-diagnostic" data-code="${escapeHtml(diagnostic.code)}">${escapeHtml(diagnosticSummary(diagnostic))}</small>`
+  : ''
+
+export const errorState = (text, diagnostic = null) =>
+  `<div class="state-panel error-state" role="alert" data-testid="page-error">${icon('error_outline')} ${escapeHtml(text)}${diagnosticLine(diagnostic)}</div>`
 
 export const permissionState = (text) =>
   `<div class="state-panel permission-state" role="alert" data-testid="permission-denied">${icon('lock')} ${escapeHtml(text)}</div>`

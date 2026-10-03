@@ -20,6 +20,43 @@ GitHub Pages (static Vite build, hash routes)
 
 There is no application server. Authorization is enforced by Postgres RLS, column privileges, `SECURITY DEFINER` RPCs that check role and status, and Storage policies. Service-role credentials are used only by the administrative reset script on a trusted machine.
 
+## External hosts
+
+The hosted mock contacts exactly two hosts. Its CSP `connect-src` is `'self'` plus the configured Supabase origin, and nothing else; there is no CDN, web font, analytics, or WebSocket (Realtime is not used).
+
+| Host | Why | What it serves |
+|---|---|---|
+| `pgaizoheb.github.io` | GitHub Pages: the app itself | `/browser-agent-demo/` document, hashed JS/CSS, logo SVG, icon font (WOFF) |
+| `kmlmsvgwhnprvmxcwpdc.supabase.co` | Supabase project: every record, the sign-in, and the e-mail verification step | `/auth/v1/*` (password sign-in, token refresh, sign-out), `/rest/v1/*` (tables, views, RPCs such as `mp_begin_verification`, `mp_session_status`), `/storage/v1/object/*` (synthetic files) |
+
+The Supabase host is required: the first request after the CAPTCHA is `POST https://kmlmsvgwhnprvmxcwpdc.supabase.co/auth/v1/token?grant_type=password`, and GitHub Pages cannot proxy it onto the page origin.
+
+**Host-restricted browsers.** A browser or automation layer that holds a tab to an allowlist of hosts must allow both hosts above. The PGA browser worker does this per portal: in the worker's **Settings → Edit portal → Advanced → Other hosts**, list `kmlmsvgwhnprvmxcwpdc.supabase.co`. Without it, the worker serves each document with an extra `connect-src` limited to `pgaizoheb.github.io`, Chrome refuses the sign-in request before it leaves the browser, and the sign-in card shows `DEMO_BACKEND_NETWORK_BLOCKED … by a browser/automation policy`. That one host is the whole adjustment: no wildcard, no CSP change, and the worker's read-only request guard still applies.
+
+## Backend diagnostics
+
+`src/lib/backend.js` validates the public configuration, creates the Supabase client, and wraps its `fetch`. When a request fails, the UI keeps a short message and adds a diagnostic code; the sign-in card and page error states also show one development-safe line (`DEMO BACKEND ERROR · <category> · <operation> → <host>`). The console gets one line per failure, for example:
+
+```text
+[demo-backend] init ok host=kmlmsvgwhnprvmxcwpdc.supabase.co
+[demo-backend] DEMO_BACKEND_NETWORK_BLOCKED category=network_blocked host=kmlmsvgwhnprvmxcwpdc.supabase.co op=auth.token:password status=0 blocked-by=browser-policy
+```
+
+Diagnostics contain only the backend host, an operation name derived from the path, the HTTP status, and the category. They never contain headers, bodies, query values, keys, tokens, or passwords.
+
+| Code | Meaning |
+|---|---|
+| `DEMO_BACKEND_NETWORK_BLOCKED` | A Content-Security-Policy refused the request before it left the browser. `blocked-by=browser-policy`: a policy the browser or an automation layer added (for example, a worker host allowlist). `blocked-by=page-csp`: the page's own CSP omits the backend, so the deployment is misconfigured. |
+| `DEMO_BACKEND_CORS_REJECTED` | The request failed, but a `no-cors` probe of `/auth/v1/health` reached the backend, so the origin was refused. |
+| `DEMO_BACKEND_UNREACHABLE` | The request and the probe both failed: DNS, connection, proxy, or an extension/host filter blocking it below the page. |
+| `DEMO_BACKEND_OFFLINE` | The browser reports it is offline. |
+| `DEMO_BACKEND_TIMEOUT` | No answer within 30 s (uploads are exempt). |
+| `DEMO_BACKEND_UNAUTHORIZED` | The backend answered 401; with "Invalid API key" the build's public key is wrong. |
+| `DEMO_BACKEND_CONFIG_MISSING` / `_CONFIG_INVALID` / `_CONFIG_REFUSED` | `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` missing, not an http(s) URL, or pointing at the production portal. |
+| `DEMO_BACKEND_INIT_FAILED` | The Supabase client threw while starting. |
+
+Both public values are trimmed at start-up, so a variable pasted with a trailing newline cannot reach a request header. The deploy workflow runs `scripts/verify-public-config.mjs`, which fails the deployment for a non-https or local-only URL and for a secret or `service_role` key.
+
 ## Demo accounts
 
 | Username | Role | Password (local) |
@@ -50,7 +87,7 @@ vite.config.js                 base path + narrow CSP for the configured Supabas
 src/main.js                    router, auth guard, shell wiring
 src/components/                shell, field, dataTable, feedback, files, attachments, notes
 src/pages/                     sign-in, home, search (+ configs), reports, request form, details, workflows
-src/lib/                       supabase client, session/roles, data access, errors, formatting
+src/lib/                       supabase client, backend start-up + diagnostics, session/roles, data access, errors, formatting
 src/assets/                    public logo, banner, icon font copied from the supplied mock
 supabase/migrations/           202609180001-2 legacy demo; 202610020001 portal schema; 202610020002 seed functions
 supabase/seeds/medpoint_demo.sql   local `supabase db reset` seed entry
@@ -59,7 +96,10 @@ supabase/tests/database/       pgTAP tests
 supabase/plain-postgres/       legacy auth stub for running old migrations on plain Postgres
 scripts/demo-dataset.mjs       scoped reset + synthetic file sync
 scripts/visual-compare.mjs     mock vs app screenshots
+scripts/verify-public-config.mjs   deploy guard for the public Supabase URL and key
+tests/unit/                    node:test unit tests (backend start-up and diagnostics through supabase-js)
 tests/e2e/                     Playwright suite; tests/fixtures/ synthetic upload files
+playwright.hosted.config.js    hosted smoke: tests/e2e/backend.spec.js against the deployed site in Google Chrome
 ```
 
 ## Local development
@@ -80,8 +120,10 @@ Open <http://localhost:5173/browser-agent-demo/>. `dev:local` injects the local 
 | Command | What it does |
 |---|---|
 | `npm run check` | JS syntax for every source/script/test, safety guards (no production domain, no privileged keys, no safety-extension), production build |
+| `npm run test:unit` | `node:test`: backend start-up failures, diagnostic categories through the real supabase-js client, operation names, and that no key, token, or password reaches a diagnostic |
 | `npm run db:test` | pgTAP: RLS, verified-session gating, role/transition rules, column privileges, Storage policies, reset scope |
 | `npm run test:e2e` | Playwright against the **production build** (`vite preview`, real CSP), desktop + 390 px mobile projects. Global setup runs `demo:reset` locally and signs in every role |
+| `npm run test:hosted` | `tests/e2e/backend.spec.js` against the **deployed** site and hosted Supabase in Google Chrome, one clean profile per test: CSP `connect-src`, contacted hosts, sign-in past the CAPTCHA, the worker-style narrowed `connect-src` diagnostic, a stale stored session, documented hosts. Signs in only as `demo.viewer`; no reset |
 | `npm run test:visual` | Serves the supplied mock on loopback and writes mock/app/diff composites to `visual-comparison/` (`MOCK_DIR` overrides the mock location) |
 | `npm run demo:reset` | Resets **only** the synthetic MedPoint dataset on the local stack: rows owned by demo organizations/profiles and objects in `mp-demo-documents` |
 | `npm run demo:reset:remote -- --confirm=<project-ref>` | The same against the hosted project, using `.env.backend` (see `.env.backend.example`). Refuses without the matching `--confirm` |
